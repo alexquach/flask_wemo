@@ -144,7 +144,14 @@ def summarize_journal_entries(user_id, start_date, end_date, specific_focus=None
     combined_journal_entries = ""
     for entry in data:
         journal_date = parse_simplified_date(entry['created_at'])
-        combined_journal_entries += f"{journal_date} {entry['title']}\n{entry['body']}\n"
+        combined_journal_entries += f"{journal_date} {entry['title']}\n{entry['body']}"
+        if entry['embedding_images'] is not None:
+            combined_journal_entries += f"Images I took:\n"
+            for image_description in entry['embedding_images']:
+                combined_journal_entries += f"{image_description}\n"
+            combined_journal_entries += "\n"
+
+    print(combined_journal_entries)
 
     # ! Final prompt
     augmented_prompt = f"""journal_entries:\n{combined_journal_entries}\n\n{summarize_prompt}"""
@@ -225,6 +232,39 @@ def generate_image(user_id, start_date: str, end_date: str, specific_focus=None)
 
     return image["image_base64"], styled_prompt
 
+def does_embedding_images_exist(user_id, entry_id):
+    """
+    Generates and stores the embeddings in the database
+    """
+    # ! Get the entry from the database
+    data = supabase.table(table_name)\
+        .select('*')\
+        .eq('entry_id', entry_id)\
+        .execute()
+    entry = dict(data)['data'][0]
+
+    return not entry['embedding_images'] is None, entry['image_urls']
+
+def store_image_embeddings(entry_id, embedding_images):
+    """
+    Generates and stores the embeddings in the database
+    """
+    # ! Get the entry from the database
+    data = supabase.table(table_name)\
+        .select('*')\
+        .eq('entry_id', entry_id)\
+        .execute()
+    entry = dict(data)['data'][0]
+
+    # ! Store the embeddings in the database
+    data = {
+        "embedding_images": embedding_images
+    }
+    data_json = json.dumps(data)
+    endpoint = f"{SUPABASE_URL}/rest/v1/{table_name}?entry_id=eq.{entry_id}"
+    response = requests.patch(endpoint, headers=headers, data=data_json)
+
+    return response.status_code
 
 def parse_llm_response(response):
     """

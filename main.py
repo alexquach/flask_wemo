@@ -1,5 +1,8 @@
+from io import BytesIO
 from flask import Flask, jsonify, request
 import os
+import modal
+from PIL import Image
 
 app = Flask(__name__)
 
@@ -77,6 +80,31 @@ def generate_image_endpoint():
     base64_image, styled_prompt = generate_image(user_id, start_date, end_date, specific_focus=specific_focus)
 
     return jsonify({"styled_prompt": styled_prompt, "base64_image": base64_image})
+
+@app.route('/process_image_embeddings', methods=['GET'])
+def process_image_embeddings_endpoint():
+    user_id = request.args.get('user_id')
+    entry_id = request.args.get('entry_id')
+    embedding_exists, array_urls = does_embedding_images_exist(user_id, entry_id)
+    if not embedding_exists and array_urls is not None:
+        # read images from array_urls
+        blip_images = []
+        for path in array_urls:
+            url = f"{SUPABASE_URL}/storage/v1/object/public/journal_images/{path}"
+            response = requests.get(url, headers=headers)
+            image = Image.open(BytesIO(response.content))
+            blip_images.append(image)
+
+        # blip_image = Image.open("last_generated_image.png")
+        f = modal.Function.lookup("image-to-text-app", "image_to_text")
+        text_descriptions = f.remote(blip_images)
+
+        # update text_description in the database
+        response = store_image_embeddings(entry_id, text_descriptions)
+
+        return jsonify(text_descriptions)
+    else:
+        return jsonify({"status": "error", "message": "Embeddings for this image already exist"})
 
 
 if __name__ == '__main__':
