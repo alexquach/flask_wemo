@@ -10,3 +10,4 @@ virtualenv
 virtualenv-clone
 gunicorn
 modal
+pillow
