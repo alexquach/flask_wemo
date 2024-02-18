@@ -23,23 +23,29 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 def parse_simplified_date(date_str):
     try:
-        journal_date = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S%z').strftime('%m/%d/%Y')
+        journal_date = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S.%f%z').strftime('%m/%d/%Y')
     except ValueError:
         try:
-            journal_date = datetime.strptime(date_str, '%m/%d/%Y').strftime('%m/%d/%Y')
+            journal_date = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S%z').strftime('%m/%d/%Y')
         except ValueError:
-            raise ValueError("Incorrect data format, should be MM/DD/YYYY")
+            try:
+                journal_date = datetime.strptime(date_str, '%m/%d/%Y').strftime('%m/%d/%Y')
+            except ValueError:
+                raise ValueError("Incorrect data format, should be MM/DD/YYYY")
         
     return journal_date
 
 def parse_full_date(date_str):
     try:
-        journal_date = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S%z').strftime('%Y-%m-%dT%H:%M:%S%z')
+        journal_date = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S.%f%z').strftime('%m/%d/%Y')
     except ValueError:
         try:
-            journal_date = datetime.strptime(date_str, '%m/%d/%Y').strftime('%Y-%m-%dT%H:%M:%S%z')
+            journal_date = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S%z').strftime('%Y-%m-%dT%H:%M:%S%z')
         except ValueError:
-            raise ValueError("Incorrect data format, should be MM/DD/YYYY")
+            try:
+                journal_date = datetime.strptime(date_str, '%m/%d/%Y').strftime('%Y-%m-%dT%H:%M:%S%z')
+            except ValueError:
+                raise ValueError("Incorrect data format, should be MM/DD/YYYY")
         
     return journal_date
 
@@ -59,6 +65,33 @@ def generate_embeddings(input_texts: List[str], model_api_string: str) -> List[L
         model=model_api_string,
     )
     return [x.embedding for x in outputs.data]
+
+def generate_and_store_embedding(entry_id):
+    """
+    Generates and stores the embeddings in the database
+    """
+    # ! Get the entry from the database
+    data = supabase.table(table_name)\
+        .select('*')\
+        .eq('entry_id', entry_id)\
+        .execute()
+    entry = dict(data)['data'][0]
+
+    journal_date = parse_simplified_date(entry['created_at'])
+    embed_str = f"{journal_date} {entry['title']}\n{entry['body']}"
+
+    # ! Generate the embeddings
+    embedding = generate_embeddings([embed_str], embedding_model_string)
+
+    # ! Store the embeddings in the database
+    data = {
+        "embedding_text": embedding[0]
+    }
+    data_json = json.dumps(data)
+    endpoint = f"{SUPABASE_URL}/rest/v1/{table_name}?entry_id=eq.{entry_id}"
+    response = requests.patch(endpoint, headers=headers, data=data_json)
+    
+    return response.status_code
 
 def add_new_journal_entry(user_id, journal_title, journal_content, journal_date, audio_url=None, image_urls=None):
     """

@@ -25,6 +25,14 @@ def create_journal():
     else:
         return jsonify({"status": "error", "message": "Failed to create journal entry", "error": response.text}), response.status_code
 
+@app.route('/generate_embedding', methods=['GET'])
+def generate_and_store_embedding_endpoint():
+    data = request.args
+    entry_id = data.get('entry_id')
+    
+    response = generate_and_store_embedding(entry_id)
+    return jsonify(response)
+
 DEFAULT_SUMMARIZE_PROMPT = f"From the given journal entries, summarize the content. Include how the user felt and what they did. Give trends and insights. Use first-person language."
 KEY_FEELINGS_SUMMARIZE_PROMPT = f"From the given journal entries, provide key phrases describing appropriate themes and feelings of the writer."
 KEY_IMAGE_SUMMARIZE_PROMPT = f"From the given journal entries, produce a DallE prompt to represent an abstract vibe of user's day. Keep it concise with max one sentence."
