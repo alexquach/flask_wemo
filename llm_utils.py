@@ -190,21 +190,6 @@ def generate_image(user_id, start_date: str, end_date: str, specific_focus=None)
         hash_value = hashlib.md5(file_content).hexdigest()
         supabase.storage.from_(bucket_id).upload(file=f, path=f"{user_id}_{hash_value}", file_options={"content-type": "image/jpeg"})
 
-    # response = supabase.storage.create_signed_url(bucket_id, image_path, 60)
-    # if response.error:
-    #     raise Exception(response.error.message)
-
-    # signed_url = response.data["signedURL"]
-
-
-
-    # response = supabase.storage.upload(bucket_id, image_path, file, upsert=True)
-
-    # if response.error:
-    #     raise Exception(response.error.message)
-
-    # print(f"Image uploaded to: {signed_url}")
-
     return image["image_base64"], styled_prompt
 
 

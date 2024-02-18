@@ -1,5 +1,3 @@
-import requests
-from openai import OpenAI
 import os
 import json
 import together
