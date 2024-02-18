@@ -95,7 +95,7 @@ supafunc
 tabulate
 tensorboard
 tensorboard-data-server
-tensorflow
+tensorflow==2.15.0
 tensorflow-estimator
 tensorflow-io-gcs-filesystem
 termcolor
